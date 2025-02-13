@@ -197,6 +197,34 @@ app.post('/generate-password', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/user-achievements', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        console.log('User ID from token:', userId);
+
+        // Ensure a valid user ID is present
+        if (!userId) {
+            console.error('Invalid user: No user ID found from token');
+            return res.status(400).json({ error: 'Invalid user' });
+        }
+
+        // Fetch the user's achievements
+        const result = await pool.query(
+            `SELECT achievement_id FROM user_achievements WHERE user_id = $1`,
+            [userId]
+        );
+        console.log('Achievements result:', result.rows);
+
+        // Map the achievement IDs to a list
+        const achievementIds = result.rows.map(row => row.achievement_id);
+
+        res.status(200).json({ achievements: achievementIds });
+    } catch (error) {
+        console.error('Error fetching user achievements:', error.stack);
+        res.status(500).json({ error: 'Error fetching achievements' });
+    }
+});
+
 //Fetch all users
 app.get('/users', authenticateToken, async (req, res)=>{
     try {
