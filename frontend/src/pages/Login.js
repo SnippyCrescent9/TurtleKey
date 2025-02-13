@@ -137,19 +137,23 @@ const UserAuthForm = () => {
                 </>
             ) : (
                 <>
-                    <h2>Welcome, {username}!</h2>
-                    <Button onClick={handleLogout}>Log Out</Button>
+                    <h2>Welcome Back!</h2>
 
                     <h3>Your Achievements:</h3>
                     {achievements.length > 0 ? (
                         <ul>
                             {achievements.map((achievement, index) => (
-                                <li key={index}>{achievement}</li>
+                                <li key={index}>
+                                    <strong>{achievement.name}</strong> - {achievement.description}
+                                    <br />
+                                    <small>Earned on: {new Date(achievement.earned_at).toLocaleDateString()}</small>
+                                </li>
                             ))}
                         </ul>
                     ) : (
                         <p>No achievements to display.</p>
                     )}
+                    <Button onClick={handleLogout}>Log Out</Button>
                 </>
             )}
         </div>

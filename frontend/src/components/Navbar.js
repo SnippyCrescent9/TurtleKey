@@ -17,11 +17,7 @@ const Navbar = () => {
             <Link to="/about">About</Link>
             <Link to="/generate-password">Generate Password</Link>
             <Link to="/rate-password">Rate My Password</Link>
-            {isLoggedIn ? (
-                <Link to="/profile">Profile</Link>
-            ) : (
-                <Link to="/login">Log In</Link>
-            )}
+            <Link to="/login">Log In</Link>
         </nav>
     );
 };

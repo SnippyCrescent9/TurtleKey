@@ -7,11 +7,13 @@ import GeneratePassword from './pages/GeneratePassword';
 import PasswordRater from './pages/PasswordRater';
 import RegisterForm from './pages/Login';
 import './styles.css';
+import Header from './components/Header';
 
 
 function App() {
   return (
     <div>
+      <Header/>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />

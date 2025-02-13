@@ -208,17 +208,19 @@ app.get('/user-achievements', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Invalid user' });
         }
 
+        const query = `
+            SELECT ua.achievement_id, a.name, a.description, ua.earned_at
+            FROM user_achievements ua
+            JOIN achievements a ON ua.achievement_id = a.id
+            WHERE ua.user_id = $1
+            ORDER BY ua.earned_at;
+        `;
+
         // Fetch the user's achievements
-        const result = await pool.query(
-            `SELECT achievement_id FROM user_achievements WHERE user_id = $1`,
-            [userId]
-        );
+        const result = await pool.query(query, [userId]);
         console.log('Achievements result:', result.rows);
 
-        // Map the achievement IDs to a list
-        const achievementIds = result.rows.map(row => row.achievement_id);
-
-        res.status(200).json({ achievements: achievementIds });
+        res.status(200).json({ achievements: result.rows });
     } catch (error) {
         console.error('Error fetching user achievements:', error.stack);
         res.status(500).json({ error: 'Error fetching achievements' });
