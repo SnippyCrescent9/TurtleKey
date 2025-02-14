@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../components/Inputs';
 import Button from '../components/Buttons';
 
@@ -8,7 +8,10 @@ const UserAuthForm = () => {
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState(() => localStorage.getItem('token'));
-    const [achievements, setAchievements] = useState([]);
+    const [achievements, setAchievements] = useState(() => {
+        const storedAchievements = localStorage.getItem('achievements');
+        return storedAchievements ? JSON.parse(storedAchievements) : [];
+    });
 
     // Function to fetch achievements
     const fetchAchievements = async (userToken) => {
@@ -24,6 +27,7 @@ const UserAuthForm = () => {
             if (response.ok) {
                 const data = await response.json();
                 setAchievements(data.achievements || []);
+                localStorage.setItem('achievements', JSON.stringify(data.achievements || [])); // Persist achievements
                 console.log('Fetched achievements:', data.achievements);
             } else {
                 console.error('Failed to fetch achievements');
@@ -42,7 +46,7 @@ const UserAuthForm = () => {
         const payload = isRegistering
             ? { username, password, email }
             : { username, password };
-        
+
         if (!username || !password || (isRegistering && !email)) {
             alert('Please fill in all the required fields.');
             return;
@@ -84,8 +88,9 @@ const UserAuthForm = () => {
     // Handle logout
     const handleLogout = () => {
         setToken(null);
-        localStorage.removeItem('token');
         setAchievements([]);
+        localStorage.removeItem('token');
+        localStorage.removeItem('achievements');
         alert('Logged out successfully!');
     };
 

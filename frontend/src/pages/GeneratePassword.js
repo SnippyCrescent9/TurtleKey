@@ -114,7 +114,7 @@ const GeneratePassword = () => {
             {error && <p style={{ color: 'red'}}>{error}</p>}
             {password && (
                 <p>
-                    Generated Password:
+                    Generated Password: 
                     <span style={{ fontWeight: "bold"}}>{'*'.repeat(password.length)}</span>
                     <Button onClick={() => alert(password)}>Show Password</Button>
                     <Button onClick={() => {
