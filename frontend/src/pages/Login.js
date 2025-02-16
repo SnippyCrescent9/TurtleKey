@@ -12,6 +12,7 @@ const UserAuthForm = () => {
         const storedAchievements = localStorage.getItem('achievements');
         return storedAchievements ? JSON.parse(storedAchievements) : [];
     });
+    const [achievementMessage, setAchievementMessage] = useState('');
 
     // Function to fetch achievements
     const fetchAchievements = async (userToken) => {
@@ -62,18 +63,25 @@ const UserAuthForm = () => {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Login response data:', data);
-                if (!isRegistering) {
+
+                const { token, username, achievementMessage } = data;
+
+                if (isRegistering) {
+                    setToken(token);
+                    localStorage.setItem('token', token);
+                    setUsername(username);
+                    setAchievementMessage(achievementMessage);  // Store achievement message here
+                    alert('Registration successful! You are now logged in.');
+                    if (achievementMessage) {
+                        fetchAchievements(token);
+                    }
+                } else {
                     const { token, username } = data;
                     setToken(token);
                     localStorage.setItem('token', token);
                     setUsername(username);
-                    console.log('Stored username:', username);
                     alert('Login successful! Token stored.');
-
-                    // Fetch achievements after login
                     fetchAchievements(token);
-                } else {
-                    alert(`Success: ${data.message}`);
                 }
             } else {
                 const error = await response.json();
@@ -81,6 +89,33 @@ const UserAuthForm = () => {
             }
         } catch (err) {
             console.error('Error connecting to the backend:', err);
+            alert('Error connecting to the server.');
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm('Are you sure you want to delete your account? This action is irreversible!')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/delete-account', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                alert('Account deleted successfully.');
+                handleLogout(); // Log out the user after account deletion
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.message || 'Failed to delete account'}`);
+            }
+        } catch (err) {
+            console.error('Error deleting account:', err);
             alert('Error connecting to the server.');
         }
     };
@@ -159,7 +194,13 @@ const UserAuthForm = () => {
                         <p>No achievements to display.</p>
                     )}
                     <Button onClick={handleLogout}>Log Out</Button>
+                    <Button onClick={handleDeleteAccount} style={{ backgroundColor: 'red', color: 'white' }}>
+                        Delete Account
+                    </Button>
                 </>
+            )}
+            {achievementMessage && (
+                <p style={{ color: 'green', fontWeight: 'bold' }}>{achievementMessage}</p>
             )}
         </div>
     );

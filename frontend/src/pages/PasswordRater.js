@@ -1,88 +1,100 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import Input from '../components/Inputs';
 import Button from '../components/Buttons';
-import MissingCriteria from '../components/MissingCriteria';
-
 
 const PasswordRater = () => {
+    const [password, setPassword] = useState('');
+    const [strength, setStrength] = useState('');
+    const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
-  const [password, setPassword] = useState('');
-  const [strength, setStrength] = useState('');
-  const [error, setError] = useState('');
-  const [missingCriteria, setMissingCriteria] = useState([]);
+    const ratePassword = async (password) => {
+        if (password.length === 0) {
+            setError('Please enter a password!');
+            setStrength('');
+            setMessage('');
+            return;
+        }
 
-  const ratePassword = (password) => {
-    if (password.length === 0) {
-      setError('Please enter a password!');
-      setStrength('');
-      setMissingCriteria([]);
-      return;
-    }
+        setError('');
+        setMessage('');
 
-    setError('');
-    setMissingCriteria([]);
-    
-    let strength = 0;
-    let missing = [];
-  
-    if (password.length < 8) {
-      missing.push('at least 8 characters');
-    } else {
-      strength += 1;
-    }
+        let strengthScore = 0;
 
-    if (!/[A-Z]/.test(password)) {
-      missing.push('an uppercase letter');
-    } else {
-      strength += 2;
-    }
+        // Check password criteria
+        if (password.length < 8) strengthScore = 0;
+        else strengthScore += 1;
 
-    if (!/[a-z]/.test(password)){
-      missing.push('a lowercase letter');
-    } else {
-      strength += 1;
-    }
+        if (!/[A-Z]/.test(password)) strengthScore = Math.min(strengthScore, 2);
+        else strengthScore += 2;
 
-    if (!/[0-9]/.test(password)){
-      missing.push('a number');
-    } else {
-      strength += 2;
-    }
-    if (!/[\W_]/.test(password)){
-      missing.push('a special character')
-    } else {
-      strength += 2;
-    }
+        if (!/[a-z]/.test(password)) strengthScore = Math.min(strengthScore, 4);
+        else strengthScore += 1;
 
-    if (strength <= 4) setStrength('Weak');
-    else if (strength ===5) setStrength('Moderate');
-    else if (strength ===6) setStrength('Strong');
-    else if (strength ===8) setStrength('Very Strong');
+        if (!/[0-9]/.test(password)) strengthScore = Math.min(strengthScore, 6);
+        else strengthScore += 2;
 
-    if (missing.length > 0) {
-      setMissingCriteria(missing);
-    }
+        if (!/[\W_]/.test(password)) strengthScore = Math.min(strengthScore, 8);
+        else strengthScore += 2;
 
-    setPassword('');
-  };
+        // Assign strength based on score
+        if (strengthScore <= 4) setStrength('Weak');
+        else if (strengthScore <= 5) setStrength('Moderate');
+        else if (strengthScore <= 6) setStrength('Strong');
+        else setStrength('Very Strong');
 
-  return (
-      <div>
-        <h2>Let's Rate Your Password!</h2>
-        <label htmlFor="password">Password: </label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter password"
-      />
-        <Button onClick={() => ratePassword(password)}>Rate Your Password</Button>
-        {error && <p style={{ color: 'red'}}>{error}</p>}
-        {strength && !error && <p>Password Strength: {strength}</p>}
-        <MissingCriteria criteria={missingCriteria}/>
-      </div>
+        // If the password is very strong, send the API request
+        if (strengthScore >= 8) {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    setError('No token found, please log in again.');
+                    return;
+                }
+
+                const response = await fetch('http://localhost:5000/rate-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        passwordStrength: 'very strong',
+                    }),
+                });
+
+                if (!response.ok) {
+                    const responseData = await response.json();  // Parse as JSON
+                    setError(responseData.error || 'An error occurred.');
+                    return;
+                }
+
+                const responseData = await response.json();  // Parse as JSON
+                setMessage(responseData.message);
+            } catch (error) {
+                setError('An error occurred. Please try again later.');
+            }
+        }
+    };
+
+    return (
+        <div>
+            <h2>Let's Rate Your Password!</h2>
+            <label htmlFor="password">Password: </label>
+            <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+            />
+            <Button onClick={() => ratePassword(password)}>Rate Your Password</Button>
+
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {strength && !error && <p>Password Strength: {strength}</p>}
+            {message && <p style={{ color: 'green' }}>{message}</p>}
+        </div>
     );
-  };
-  
-  export default PasswordRater;
+};
+
+export default PasswordRater;

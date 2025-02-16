@@ -61,16 +61,11 @@ const GeneratePassword = () => {
 
         try {
             const decodedToken = jwtDecode(token);
-            //debug for decoded token structure
-            //console.log('Decoded Token:', decodedToken);
 
             if (!decodedToken.userId) {
                 setError('Invalid token. User ID missing.');
                 return;
             }
-
-            //for debugging
-            //.log('User Id:', decodedToken.userId);
             
             const response = await fetch('http://localhost:5000/generate-password', {
                 method: 'POST',
@@ -92,6 +87,7 @@ const GeneratePassword = () => {
         
             const successMessage = await response.text();
             console.log('Success:', successMessage); // Debug or display a success toast
+            setMessage(successMessage);
         } catch (error) {
             console.error('Error while posting:', error);
             setError('An error occurred. Please try again later.');
@@ -124,6 +120,8 @@ const GeneratePassword = () => {
                     }}>Copy Password</Button>
                 </p>
             )}
+            {message && <p style={{ color: 'green' }}>{message}</p>}
+
 
             {/* Disclaimer added here */}
             <p style={{ fontSize: '0.9rem', color: 'gray', marginTop: '20px' }}>

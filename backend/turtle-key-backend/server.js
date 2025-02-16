@@ -4,6 +4,7 @@ import pool from './database.js';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 dotenv.config();
 const app = express();
@@ -49,7 +50,7 @@ const awardAchievement = async (userId, achievementId) => {
             [userId, achievementId]
         );
         if (checkAchievement.rows.length > 0) {
-            return; // Achievement already awarded
+            return null; // Achievement already awarded
         }
 
         // Award the achievement
@@ -57,9 +58,20 @@ const awardAchievement = async (userId, achievementId) => {
             'INSERT INTO user_achievements (user_id, achievement_id, earned_at) VALUES ($1, $2, NOW())',
             [userId, achievementId]
         );
+        // Fetch the name of the awarded achievement
+        const achievementResult = await pool.query(
+            'SELECT name FROM achievements WHERE id = $1',
+            [achievementId]
+        );
+
+        // Check if the result contains a valid achievement name
+        const achievementName = achievementResult.rows[0]?.name || 'an achievement';
+        
         console.log(`Achievement ${achievementId} awarded to user ${userId}`);
+        return `Congratulations! You have earned the "${achievementName}" achievement.`;
     } catch (error) {
         console.error('Error awarding achievement:', error.stack);
+        return null;
     }
 };
 
@@ -73,45 +85,62 @@ app.post('/register', async (req, res) => {
     const { username, password, email } = req.body;
 
     try {
-        if (!username || !password) {
-            return res.status(400).json({error:'Username and password are required'});
+        if (!username || !password || !email) {
+            return res.status(400).json({ error: 'Username, password, and email are required' });
         }
 
-        // Check if username or email already exists
+        // Hash the email using SHA-256
+        const hashEmail = (email) => {
+            return crypto.createHash('sha256').update(email).digest('hex');
+        };
+
+        const hashedEmail = hashEmail(email);
+
+        // Check if username or hashed email already exists
         const userCheck = await pool.query(
             'SELECT username, email FROM users WHERE username = $1 OR email = $2',
-            [username, email]
+            [username, hashedEmail]
         );
 
         if (userCheck.rows.length > 0) {
             const existingUser = userCheck.rows[0];
             if (existingUser.username === username) {
-                return res.status(400).json({error: 'Username already exists. Please choose a different username.'});
+                return res.status(400).json({ error: 'Username already exists. Please choose a different username.' });
             }
-            if (existingUser.email === email) {
-                return res.status(400).json({error: 'Email already registered. Please use a different email.'});
+            if (existingUser.email === hashedEmail) {
+                return res.status(400).json({ error: 'Email already registered. Please use a different email.' });
             }
         }
 
-        // Hash the password
+        // Hash the password using bcrypt
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Insert the new user and return their ID
+        // Insert the new user into the database
         const result = await pool.query(
             'INSERT INTO users (username, password_hash, email, profile_complete) VALUES ($1, $2, $3, true) RETURNING id',
-            [username, hashedPassword, email]
+            [username, hashedPassword, hashedEmail]
         );
 
         const userId = result.rows[0].id;
 
         // Award the New Turtle achievement
-        await awardAchievement(userId, 4); // Achievement ID for New Turtle
+        const achievementMessage = await awardAchievement(userId, 4); // Achievement ID for New Turtle
 
-        res.status(201).json({success: true, message: 'User registered successfully and New Turtle achievement awarded!'});
+         // Generate JWT token (just like your login function)
+         const token = jwt.sign({ userId, username }, process.env.JWT_SECRET, {
+            expiresIn: '1h',
+        });
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'User registered successfully and New Turtle achievement awarded!',
+            achievementMessage: achievementMessage || null,
+            token,
+        });
     } catch (error) {
         console.error('Error details:', error.stack);
-        res.status(500).json({error:'Error registering user'});
+        res.status(500).json({ error: 'Error registering user' });
     }
 });
 
@@ -140,13 +169,35 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.post('/generate-password', authenticateToken, async (req, res) => {
-    //USED FOR DEBUG, DELETE LATER
-    //console.log('Route hit: /generate-password');
-    //console.log('Request body:', req.body);
-    //console.log('Authenticated user:', req.user);
+app.delete('/delete-account', authenticateToken, async (req, res) => {
+    const userId = req.user?.userId;
 
-    
+    try {
+        // Ensure the user ID is valid
+        if (!userId) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+
+        // Optionally, delete user achievements
+        await pool.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+
+        // Optionally, delete other user-related data here (e.g., passwords, logs, etc.)
+
+        // Delete the user account
+        const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting account:', error.stack);
+        res.status(500).json({ error: 'Error deleting account' });
+    }
+});
+
+app.post('/generate-password', authenticateToken, async (req, res) => {
     const { passwordStrength } = req.body;
     const userId = req.user?.id || req.body.userId;
 
@@ -163,31 +214,32 @@ app.post('/generate-password', authenticateToken, async (req, res) => {
             'UPDATE users SET password_count = password_count + 1 WHERE id = $1',
             [userId]
         );
-        //USED TO CHECK IF USER ID IS CORRECT
-        //console.log('User ID:', userId);
 
         // Fetch the user's updated password count
         const result = await pool.query(
             'SELECT password_count FROM users WHERE id = $1',
             [userId]
         );
-        //will be removed, needed to figure out error DELETE LATER
-        //console.log('User data fetched:', result.rows);
+        
         if (!result.rows.length) {
             return res.status(404).send('User not found');
         }
 
         const passwordCount = result.rows[0].password_count;
 
+        let achievementMessage = '';
+
         // Check achievements
         if (passwordCount === 1) {
-            await awardAchievement(userId, 1); // First Generated Password
+            achievementMessage = await awardAchievement(userId, 1); // First Generated Password
         }
         if (passwordCount === 5) {
-            await awardAchievement(userId, 3); // Turtle-tastic!
+            achievementMessage = await awardAchievement(userId, 3); // Turtle-tastic!
         }
-        if (passwordStrength === 'very strong') {
-            await awardAchievement(userId, 2); // Shell Proof Password
+
+        // Send response with achievement message if any
+        if (achievementMessage) {
+            return res.status(200).send(achievementMessage); // Send message to frontend
         }
 
         res.status(200).send('Password generated successfully!');
@@ -196,6 +248,47 @@ app.post('/generate-password', authenticateToken, async (req, res) => {
         res.status(500).send('Error generating password');
     }
 });
+
+// Add the /rate-password endpoint
+app.post('/rate-password', authenticateToken, async (req, res) => {
+    const { passwordStrength } = req.body;
+    const userId = req.user?.userId;
+
+    if (!passwordStrength) {
+        return res.status(400).send('Password strength rating is required');
+    }
+
+    if (!userId) {
+        return res.status(400).send('Invalid user');
+    }
+
+    try {
+        // Here, you can add logic to rate the password based on its strength
+        let achievementMessage = '';
+        if (passwordStrength === 'very strong') {
+            // Award achievement for a strong password
+            achievementMessage = await awardAchievement(userId, 2); // Achievement ID for strong password
+        }
+
+        // Only send a response if an achievement is awarded
+        if (achievementMessage) {
+            return res.status(200).json({
+                success: true,
+                message: `Password strength rated as very strong. ${achievementMessage}`,
+            });
+        }
+
+        // No achievement awarded, so don't send a response here
+        return res.status(200).json({
+            success: true
+        });
+
+    } catch (error) {
+        console.error('Error rating password:', error.stack);
+        res.status(500).json({ error: 'Error rating password' });
+    }
+});
+
 
 app.get('/user-achievements', authenticateToken, async (req, res) => {
     try {
