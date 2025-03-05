@@ -11,14 +11,24 @@ const GeneratePassword = () => {
     const [message, setMessage] = useState('');
 
     const generatePassword = async () => {
-        //if password length is set to be under 8, send error message
-        if (length < 8 || length > 20) {
-            setError('A secure password length must be between 8 to 20 characters.');
+        // Check for token first
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('Please log in to generate a password.');
             setPassword('');
-            return; 
+            setMessage('');
+            return;
         }
-        
+
+        if (length < 8 || length > 20) {
+            setError('Password length must be between 8 and 20 characters');
+            setPassword('');
+            setMessage('');
+            return;
+        }
+
         setError('');
+        setMessage('Password generated successfully!');
 
         //generate a strong password
         const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -51,13 +61,6 @@ const GeneratePassword = () => {
 
         //for debugging
         //console.log(localStorage.getItem('token'));
-
-        //Send API request to backend
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setError('No token found, please log in again.');
-            return;
-        }
 
         try {
             const decodedToken = jwtDecode(token);
@@ -95,40 +98,48 @@ const GeneratePassword = () => {
     };
 
     return (
-        <div>
+        <div className="generate-password-content">
             <h2>Generate a Secure Password</h2>
-            <label htmlFor="PasswordLength">Desired Password Length: </label>
-            <Input
-                id="PasswordLength"
-                type="number"
-                value={length}
-                onChange={(e) => setLength(Number(e.target.value))}
-                min="8"
-                max="20"
-            />
-            <Button onClick={generatePassword}>Generate Password</Button>
-            {error && <p style={{ color: 'red'}}>{error}</p>}
-            {password && (
-                <p>
-                    Generated Password: 
-                    <span style={{ fontWeight: "bold"}}>{'*'.repeat(password.length)}</span>
-                    <Button onClick={() => alert(password)}>Show Password</Button>
-                    <Button onClick={() => {
-                        navigator.clipboard.writeText(password);
-                        alert('Password copied to clipboard!');
-                        setPassword(''); // Clear the password after copying
-                    }}>Copy Password</Button>
-                </p>
-            )}
-            {message && <p style={{ color: 'green' }}>{message}</p>}
+            <div className="password-section">
+                <div className="password-form">
+                    <div className="input-group">
+                        <label htmlFor="PasswordLength">Desired Password Length: </label>
+                        <Input
+                            id="PasswordLength"
+                            type="number"
+                            value={length}
+                            onChange={(e) => setLength(Number(e.target.value))}
+                            min="8"
+                            max="20"
+                        />
+                    </div>
+                    <Button onClick={generatePassword}>Generate Password</Button>
+                </div>
+                
+                {error && <p className="error-message">{error}</p>}
+                {password && (
+                    <div className="password-result">
+                        <p>Generated Password: 
+                            <span className="password-mask">{'*'.repeat(password.length)}</span>
+                        </p>
+                        <div className="button-group">
+                            <Button onClick={() => alert(password)}>Show Password</Button>
+                            <Button onClick={() => {
+                                navigator.clipboard.writeText(password);
+                                alert('Password copied to clipboard!');
+                                setPassword('');
+                            }}>Copy Password</Button>
+                        </div>
+                    </div>
+                )}
+                {message && <p className="success-message">{message}</p>}
+            </div>
 
-
-            {/* Disclaimer added here */}
-            <p style={{ fontSize: '0.9rem', color: 'gray', marginTop: '20px' }}>
-                ⚠️ <strong>Disclaimer:</strong> Please store your password securely. 
+            <div className="disclaimer-section">
+                <p>⚠️ <strong>Disclaimer:</strong> Please store your password securely. 
                 Once copied, it will be cleared from the application for your security. 
-                Ensure the password is saved in a secure location as it cannot be recovered later.
-            </p>
+                Ensure the password is saved in a secure location as it cannot be recovered later.</p>
+            </div>
         </div>
     );
 };

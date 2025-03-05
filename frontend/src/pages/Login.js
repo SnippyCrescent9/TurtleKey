@@ -130,78 +130,70 @@ const UserAuthForm = () => {
     };
 
     return (
-        <div>
-            {!token ? (
-                <>
-                    <h2>{isRegistering ? 'Register' : 'Login'}</h2>
-                    <form id="authForm" onSubmit={handleSubmit}>
-                        <label htmlFor="username">Username:</label>
-                        <Input
-                            type="text"
-                            id="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                        /><br />
-
-                        <label htmlFor="password">Password:</label>
-                        <Input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        /><br />
-
-                        {isRegistering && (
-                            <>
-                                <label htmlFor="email">Email:</label>
+        <div className="auth-content">
+            <h2>{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
+            <div className="auth-card">
+                {!token ? (
+                    <>
+                        <form id="authForm" onSubmit={handleSubmit} className="auth-form">
+                            <div className="input-group">
+                                <label htmlFor="username">Username</label>
                                 <Input
-                                    type="email"
-                                    id="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    type="text"
+                                    id="username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
                                     required
-                                /><br />
-                            </>
-                        )}
+                                    placeholder="Enter your username"
+                                />
+                            </div>
 
-                        <Button type="submit">
-                            {isRegistering ? 'Register' : 'Login'}
-                        </Button>
-                    </form>
+                            <div className="input-group">
+                                <label htmlFor="password">Password</label>
+                                <Input
+                                    type="password"
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    placeholder="Enter your password"
+                                />
+                            </div>
 
-                    <Button onClick={() => setIsRegistering(!isRegistering)}>
-                        Switch to {isRegistering ? 'Login' : 'Register'}
-                    </Button>
-                </>
-            ) : (
-                <>
-                    <h2>Welcome Back!</h2>
+                            {isRegistering && (
+                                <div className="input-group">
+                                    <label htmlFor="email">Email</label>
+                                    <Input
+                                        type="email"
+                                        id="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        placeholder="Enter your email"
+                                    />
+                                </div>
+                            )}
 
-                    <h3>Your Achievements:</h3>
-                    {achievements.length > 0 ? (
-                        <ul>
-                            {achievements.map((achievement, index) => (
-                                <li key={index}>
-                                    <strong>{achievement.name}</strong> - {achievement.description}
-                                    <br />
-                                    <small>Earned on: {new Date(achievement.earned_at).toLocaleDateString()}</small>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>No achievements to display.</p>
-                    )}
-                    <Button onClick={handleLogout}>Log Out</Button>
-                    <Button onClick={handleDeleteAccount} style={{ backgroundColor: 'red', color: 'white' }}>
-                        Delete Account
-                    </Button>
-                </>
-            )}
-            {achievementMessage && (
-                <p style={{ color: 'green', fontWeight: 'bold' }}>{achievementMessage}</p>
-            )}
+                            <div className="button-group">
+                                <Button type="submit">
+                                    {isRegistering ? 'Create Account' : 'Sign In'}
+                                </Button>
+                                <div className="button-separator">
+                                    <span>or</span>
+                                </div>
+                                <Button type="button" onClick={() => setIsRegistering(!isRegistering)}>
+                                    {isRegistering ? 'Already have an account? Sign In' : 'Need an account? Register'}
+                                </Button>
+                            </div>
+                        </form>
+                    </>
+                ) : (
+                    <div className="profile-section">
+                        <h3>Welcome, {username}!</h3>
+                        <Button onClick={handleLogout}>Logout</Button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
