@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Input from '../components/Inputs';
 import Button from '../components/Buttons';
+import { useNavigate } from 'react-router-dom';
 
 const UserAuthForm = () => {
     const [isRegistering, setIsRegistering] = useState(true);
-    const [username, setUsername] = useState('');
+    const [username, setUsername] = useState(() => localStorage.getItem('username') || '');
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
     const [token, setToken] = useState(() => localStorage.getItem('token'));
@@ -13,6 +14,12 @@ const UserAuthForm = () => {
         return storedAchievements ? JSON.parse(storedAchievements) : [];
     });
     const [achievementMessage, setAchievementMessage] = useState('');
+    const navigate = useNavigate();
+
+    // Debug useEffect for username
+    useEffect(() => {
+        console.log('Current username:', username);
+    }, [username]);
 
     // Function to fetch achievements
     const fetchAchievements = async (userToken) => {
@@ -63,33 +70,29 @@ const UserAuthForm = () => {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Login response data:', data);
-
-                const { token, username, achievementMessage } = data;
-
-                if (isRegistering) {
-                    setToken(token);
-                    localStorage.setItem('token', token);
-                    setUsername(username);
-                    setAchievementMessage(achievementMessage);  // Store achievement message here
-                    alert('Registration successful! You are now logged in.');
-                    if (achievementMessage) {
-                        fetchAchievements(token);
-                    }
-                } else {
-                    const { token, username } = data;
-                    setToken(token);
-                    localStorage.setItem('token', token);
-                    setUsername(username);
-                    alert('Login successful! Token stored.');
-                    fetchAchievements(token);
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('isGuest', 'false');
+                
+                // Handle achievement message for new users
+                if (isRegistering && data.achievementMessage) {
+                    setAchievementMessage(data.achievementMessage);
                 }
+                
+                // Fetch achievements
+                await fetchAchievements(data.token);
+                
+                // Dispatch storage change event
+                window.dispatchEvent(new Event('storageChange'));
+                
+                navigate('/profile');
             } else {
-                const error = await response.json();
-                alert(`Error: ${error.message || 'Something went wrong'}`);
+                const errorData = await response.json();
+                alert(errorData.error || 'Login failed');
             }
-        } catch (err) {
-            console.error('Error connecting to the backend:', err);
-            alert('Error connecting to the server.');
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during login');
         }
     };
 
@@ -123,15 +126,47 @@ const UserAuthForm = () => {
     // Handle logout
     const handleLogout = () => {
         setToken(null);
+        setUsername('');
         setAchievements([]);
         localStorage.removeItem('token');
+        localStorage.removeItem('username');
         localStorage.removeItem('achievements');
+        // Dispatch custom event to notify Navbar
+        window.dispatchEvent(new Event('storageChange'));
         alert('Logged out successfully!');
+    };
+
+    // Add handleGuestLogin function before the return statement
+    const handleGuestLogin = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/guest-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('isGuest', 'true');
+                
+                // Dispatch storage change event
+                window.dispatchEvent(new Event('storageChange'));
+                
+                navigate('/guest-profile');
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Guest login failed');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during guest login');
+        }
     };
 
     return (
         <div className="auth-content">
-            <h2>{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
+            <h2>{token ? 'Account Information' : (isRegistering ? 'Create Account' : 'Welcome Back')}</h2>
             <div className="auth-card">
                 {!token ? (
                     <>
@@ -184,12 +219,42 @@ const UserAuthForm = () => {
                                 <Button type="button" onClick={() => setIsRegistering(!isRegistering)}>
                                     {isRegistering ? 'Already have an account? Sign In' : 'Need an account? Register'}
                                 </Button>
+                                <div className="button-separator">
+                                    <span>or</span>
+                                </div>
+                                <Button type="button" onClick={handleGuestLogin}>
+                                    Continue as Guest
+                                </Button>
                             </div>
                         </form>
                     </>
                 ) : (
                     <div className="profile-section">
-                        <h3>Welcome, {username}!</h3>
+                        <h3>Welcome Back, {username}!</h3>
+                        {achievementMessage && (
+                            <p className="success-message">{achievementMessage}</p>
+                        )}
+                        {achievements && achievements.length > 0 && (
+                            <div className="achievements-section">
+                                <h4>Your Achievements:</h4>
+                                <ul>
+                                    {achievements.map((achievement, index) => (
+                                        <li key={index}>
+                                            <div>{achievement.name} - {achievement.description}</div>
+                                            <div className="achievement-timestamp">
+                                                Earned on: {new Date(achievement.earned_at).toLocaleDateString('en-US', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                         <Button onClick={handleLogout}>Logout</Button>
                     </div>
                 )}

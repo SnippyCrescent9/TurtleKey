@@ -20,24 +20,46 @@ app.use(express.json());
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
 
-    // Check if the authorization header is present
     if (!authHeader) {
         return res.status(401).send('Access Denied: No token provided');
     }
 
-    // Split the header to extract the token if in "Bearer <token>" format
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
         return res.status(401).send('Access Denied: Malformed token');
     }
 
     try {
-        // Verify the token using your secret
         const verified = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = verified; // Attach user data to the request
-        next(); // Move to the next middleware or route
+        
+        // Check if it's a guest token
+        if (verified.isGuest) {
+            // Verify the guest still exists and token matches
+            pool.query(
+                'SELECT * FROM guests WHERE id = $1 AND token = $2',
+                [verified.guestId, token]
+            ).then(result => {
+                if (result.rows.length === 0) {
+                    return res.status(403).send('Invalid or expired guest token');
+                }
+                // Update last_active timestamp
+                pool.query(
+                    'UPDATE guests SET last_active = NOW() WHERE id = $1',
+                    [verified.guestId]
+                );
+                req.user = verified;
+                next();
+            }).catch(error => {
+                console.error('Error verifying guest:', error);
+                res.status(403).send('Invalid guest token');
+            });
+        } else {
+            // Regular user authentication
+            req.user = verified;
+            next();
+        }
     } catch (error) {
-        console.error('Token verification error:', error.message); // Log the error
+        console.error('Token verification error:', error.message);
         res.status(403).send('Invalid Token');
     }
 };
@@ -162,7 +184,12 @@ app.post('/login', async (req, res) => {
         });
         console.log('Generated Token:', token);
 
-        res.json({ success: true, message: 'Login successful', token });
+        res.json({ 
+            success: true, 
+            message: 'Login successful', 
+            token,
+            username: user.rows[0].username 
+        });
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({error: 'Server error'});
@@ -199,47 +226,48 @@ app.delete('/delete-account', authenticateToken, async (req, res) => {
 
 app.post('/generate-password', authenticateToken, async (req, res) => {
     const { passwordStrength } = req.body;
-    const userId = req.user?.id || req.body.userId;
+    const userId = req.user?.userId;
+    const isGuest = req.user?.isGuest;
 
-    if (!userId || typeof userId !== 'number') {
-        return res.status(400).send('Invalid userId');
-    }
     if (!passwordStrength || typeof passwordStrength !== 'string') {
         return res.status(400).send('Invalid passwordStrength');
     }    
 
     try {
-        // Record password generation (increment count)
-        await pool.query(
-            'UPDATE users SET password_count = password_count + 1 WHERE id = $1',
-            [userId]
-        );
+        // Only update password count for regular users
+        if (!isGuest) {
+            // Record password generation (increment count)
+            await pool.query(
+                'UPDATE users SET password_count = password_count + 1 WHERE id = $1',
+                [userId]
+            );
 
-        // Fetch the user's updated password count
-        const result = await pool.query(
-            'SELECT password_count FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (!result.rows.length) {
-            return res.status(404).send('User not found');
-        }
+            // Fetch the user's updated password count
+            const result = await pool.query(
+                'SELECT password_count FROM users WHERE id = $1',
+                [userId]
+            );
+            
+            if (!result.rows.length) {
+                return res.status(404).send('User not found');
+            }
 
-        const passwordCount = result.rows[0].password_count;
+            const passwordCount = result.rows[0].password_count;
 
-        let achievementMessage = '';
+            let achievementMessage = '';
 
-        // Check achievements
-        if (passwordCount === 1) {
-            achievementMessage = await awardAchievement(userId, 1); // First Generated Password
-        }
-        if (passwordCount === 5) {
-            achievementMessage = await awardAchievement(userId, 3); // Turtle-tastic!
-        }
+            // Check achievements
+            if (passwordCount === 1) {
+                achievementMessage = await awardAchievement(userId, 1); // First Generated Password
+            }
+            if (passwordCount === 5) {
+                achievementMessage = await awardAchievement(userId, 3); // Turtle-tastic!
+            }
 
-        // Send response with achievement message if any
-        if (achievementMessage) {
-            return res.status(200).send(achievementMessage); // Send message to frontend
+            // Send response with achievement message if any
+            if (achievementMessage) {
+                return res.status(200).send(achievementMessage); // Send message to frontend
+            }
         }
 
         res.status(200).send('Password generated successfully!');
@@ -253,19 +281,21 @@ app.post('/generate-password', authenticateToken, async (req, res) => {
 app.post('/rate-password', authenticateToken, async (req, res) => {
     const { passwordStrength } = req.body;
     const userId = req.user?.userId;
+    const isGuest = req.user?.isGuest;
 
     if (!passwordStrength) {
         return res.status(400).send('Password strength rating is required');
     }
 
-    if (!userId) {
+    // For guest users, we don't need to check userId
+    if (!isGuest && !userId) {
         return res.status(400).send('Invalid user');
     }
 
     try {
-        // Here, you can add logic to rate the password based on its strength
+        // Only award achievements for regular users, not guests
         let achievementMessage = '';
-        if (passwordStrength === 'very strong') {
+        if (!isGuest && passwordStrength === 'very strong') {
             // Award achievement for a strong password
             achievementMessage = await awardAchievement(userId, 2); // Achievement ID for strong password
         }
@@ -340,6 +370,102 @@ app.get('/test-db', async (req, res) => {
         res.status(500).send('Database connection failed');
     }
 });
+
+// Guest login endpoint
+app.post('/guest-login', async (req, res) => {
+    try {
+        console.log('Starting guest login process...');
+
+        // Generate a unique guest username
+        const timestamp = Date.now();
+        const randomNum = Math.floor(Math.random() * 1000);
+        const guestUsername = `Guest_${timestamp}${randomNum}`;
+
+        console.log('Generated guest username:', guestUsername);
+
+        // Check if username exists in guests table only
+        console.log('Checking for username conflicts...');
+        const userCheck = await pool.query(
+            'SELECT username FROM guests WHERE username = $1',
+            [guestUsername]
+        );
+
+        if (userCheck.rows.length > 0) {
+            console.log('Username conflict detected:', guestUsername);
+            return res.status(409).json({ error: 'Username conflict, please try again' });
+        }
+
+        console.log('No username conflicts found, creating guest account...');
+
+        // Create a new guest user
+        const result = await pool.query(
+            'INSERT INTO guests (username, created_at, last_active) VALUES ($1, NOW(), NOW()) RETURNING id',
+            [guestUsername]
+        );
+
+        if (!result.rows || result.rows.length === 0) {
+            console.error('Failed to insert guest user');
+            return res.status(500).json({ error: 'Failed to create guest account' });
+        }
+
+        const guestId = result.rows[0].id;
+        console.log('Guest account created with ID:', guestId);
+
+        // Generate JWT token
+        console.log('Generating JWT token...');
+        const token = jwt.sign({ guestId, username: guestUsername, isGuest: true }, process.env.JWT_SECRET, {
+            expiresIn: '24h',
+        });
+
+        // Store the token in the guests table
+        console.log('Storing token in database...');
+        await pool.query(
+            'UPDATE guests SET token = $1 WHERE id = $2',
+            [token, guestId]
+        );
+
+        console.log('Guest login successful for username:', guestUsername);
+
+        res.status(201).json({
+            success: true,
+            message: 'Guest login successful',
+            token,
+            username: guestUsername
+        });
+    } catch (error) {
+        console.error('Detailed error in guest login:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error name:', error.name);
+        console.error('Error code:', error.code);
+        console.error('Error detail:', error.detail);
+        console.error('Error hint:', error.hint);
+        
+        res.status(500).json({ 
+            error: 'Error creating guest account',
+            details: error.message,
+            name: error.name,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
+
+// Cleanup old guest accounts (runs every hour)
+const cleanupGuestAccounts = async () => {
+    try {
+        const result = await pool.query(
+            'DELETE FROM guests WHERE created_at < NOW() - INTERVAL \'24 hours\''
+        );
+        console.log(`Cleaned up ${result.rowCount} old guest accounts`);
+    } catch (error) {
+        console.error('Error cleaning up guest accounts:', error);
+    }
+};
+
+// Run cleanup every hour
+setInterval(cleanupGuestAccounts, 60 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

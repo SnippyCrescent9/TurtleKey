@@ -403,6 +403,12 @@ button:hover {
     padding: 2rem;
 }
 
+.profile-section h3 {
+    text-align: center;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+}
+
 .error-message {
     color: var(--error-color);
     margin: 1rem 0;
@@ -463,4 +469,187 @@ button:hover {
     color: var(--primary-color);
     position: absolute;
     left: 0;
+}
+
+.achievement-content {
+    padding: 1rem;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 1rem;
+}
+
+.achievement-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trophy-icon {
+    font-size: 1.2rem;
+}
+
+.achievement-description {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.achievement-timestamp {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+}
+
+.achievements-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    text-align: left;
+}
+
+.achievements-section h4 {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.achievements-section ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.achievements-section li {
+    margin: 1rem 0;
+    padding: 0.5rem 0;
+}
+
+.achievements-section li:last-child {
+    margin-bottom: 0;
+}
+
+.achievement-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trophy-icon {
+    font-size: 1.2rem;
+}
+
+.achievement-description {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.achievement-timestamp {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+}
+
+.guest-message {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    margin: 2rem 0;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.logout-button {
+    background-color: var(--error-color);
+    margin-top: 1rem;
+}
+
+.logout-button:hover {
+    background-color: #c0392b;
+}
+
+.profile-content {
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.profile-section {
+    background-color: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin: 2rem auto;
+    width: 100%;
+    max-width: 800px;
+    text-align: center;
+}
+
+.profile-section h3 {
+    text-align: center;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+}
+
+.achievements-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    text-align: left;
+}
+
+.achievements-section h4 {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.achievements-section ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.achievements-section li {
+    margin: 1rem 0;
+    padding: 0.5rem 0;
+}
+
+.achievements-section li:last-child {
+    margin-bottom: 0;
+}
+
+.achievement-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trophy-icon {
+    font-size: 1.2rem;
+}
+
+.achievement-description {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.achievement-timestamp {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
 }

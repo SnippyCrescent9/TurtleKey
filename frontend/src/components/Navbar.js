@@ -4,23 +4,29 @@ import '../styles.css';
 
 const Navbar = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isGuest, setIsGuest] = useState(false);
 
-    // Function to check token in localStorage
-    const checkToken = () => {
+    const checkAuthStatus = () => {
         const token = localStorage.getItem('token');
-        setIsLoggedIn(token !== null); // Update state if token exists or not
+        const isGuestUser = localStorage.getItem('isGuest') === 'true';
+        setIsLoggedIn(!!token);
+        setIsGuest(isGuestUser);
     };
 
     useEffect(() => {
-        // Initial check when the component mounts
-        checkToken();
+        // Initial check
+        checkAuthStatus();
 
-        // Add a 'storage' event listener to detect changes to localStorage
-        window.addEventListener('storage', checkToken);
+        // Listen for storage changes
+        window.addEventListener('storage', checkAuthStatus);
+        
+        // Listen for custom storage change event
+        window.addEventListener('storageChange', checkAuthStatus);
 
-        // Cleanup: remove the event listener when the component unmounts
+        // Cleanup
         return () => {
-            window.removeEventListener('storage', checkToken);
+            window.removeEventListener('storage', checkAuthStatus);
+            window.removeEventListener('storageChange', checkAuthStatus);
         };
     }, []);
 
@@ -29,8 +35,16 @@ const Navbar = () => {
             <Link to="/">Home</Link>
             <Link to="/about">About</Link>
             <Link to="/generate-password">Generate Password</Link>
-            <Link to="/rate-password">Rate My Password</Link>
-            <Link to="/login">{isLoggedIn ? 'Profile' : 'Log In'}</Link>
+            <Link to="/rate-password">Password Rater</Link>
+            {isLoggedIn ? (
+                isGuest ? (
+                    <Link to="/guest-profile">Guest</Link>
+                ) : (
+                    <Link to="/profile">Profile</Link>
+                )
+            ) : (
+                <Link to="/login">Login</Link>
+            )}
         </nav>
     );
 };

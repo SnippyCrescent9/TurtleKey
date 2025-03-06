@@ -59,17 +59,7 @@ const GeneratePassword = () => {
 
         setPassword(passwordArray.join(''));
 
-        //for debugging
-        //console.log(localStorage.getItem('token'));
-
         try {
-            const decodedToken = jwtDecode(token);
-
-            if (!decodedToken.userId) {
-                setError('Invalid token. User ID missing.');
-                return;
-            }
-            
             const response = await fetch('http://localhost:5000/generate-password', {
                 method: 'POST',
                 headers: {
@@ -77,19 +67,18 @@ const GeneratePassword = () => {
                     'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    userId: decodedToken.userId,
                     passwordStrength: 'very strong',
                 }),
             });
             
             if (!response.ok) {
                 const errorMessage = await response.text();
-                setError(errorMessage); // Display error to user
+                setError(errorMessage);
                 return;
             }
         
             const successMessage = await response.text();
-            console.log('Success:', successMessage); // Debug or display a success toast
+            console.log('Success:', successMessage);
             setMessage(successMessage);
         } catch (error) {
             console.error('Error while posting:', error);
