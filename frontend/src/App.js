@@ -8,6 +8,9 @@ import PasswordRater from './pages/PasswordRater';
 import RegisterForm from './pages/Login';
 import GuestProfile from './pages/GuestProfile';
 import Profile from './pages/Profile';
+import ForgotPassword from './pages/ForgotPassword';
+import ValidateCode from './pages/ValidateCode';
+import ResetPassword from './pages/ResetPassword';
 import './styles.css';
 import Header from './components/Header';
 
@@ -25,6 +28,9 @@ function App() {
           <Route path="/login" element={<RegisterForm/>} />
           <Route path="/guest-profile" element={<GuestProfile />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/validate-code" element={<ValidateCode />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
     </div>

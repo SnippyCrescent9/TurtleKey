@@ -653,3 +653,55 @@ button:hover {
     color: #666;
     font-style: italic;
 }
+
+.forgot-password-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+.forgot-password-link:hover {
+    text-decoration: underline;
+}
+
+.password-requirements {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.password-requirements ul {
+    margin: 0.25rem 0 0 1.5rem;
+    padding: 0;
+}
+
+.password-requirements li {
+    margin: 0.15rem 0;
+}
+
+.instruction-text {
+    color: #666;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.message {
+    text-align: center;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.message.success {
+    background-color: #e6ffe6;
+    color: #006600;
+    border: 1px solid #b3ffb3;
+}
+
+.message.error {
+    background-color: #ffe6e6;
+    color: #cc0000;
+    border: 1px solid #ffb3b3;
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Input from '../components/Inputs';
 import Button from '../components/Buttons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const UserAuthForm = () => {
     const [isRegistering, setIsRegistering] = useState(true);
@@ -171,6 +171,19 @@ const UserAuthForm = () => {
                 {!token ? (
                     <>
                         <form id="authForm" onSubmit={handleSubmit} className="auth-form">
+                            {isRegistering && (
+                                <div className="input-group">
+                                    <label htmlFor="email">Email</label>
+                                    <Input
+                                        type="email"
+                                        id="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        placeholder="Enter your email"
+                                    />
+                                </div>
+                            )}
                             <div className="input-group">
                                 <label htmlFor="username">Username</label>
                                 <Input
@@ -193,21 +206,12 @@ const UserAuthForm = () => {
                                     required
                                     placeholder="Enter your password"
                                 />
+                                {!isRegistering && (
+                                    <Link to="/forgot-password" className="forgot-password-link">
+                                        Forgot Password?
+                                    </Link>
+                                )}
                             </div>
-
-                            {isRegistering && (
-                                <div className="input-group">
-                                    <label htmlFor="email">Email</label>
-                                    <Input
-                                        type="email"
-                                        id="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        placeholder="Enter your email"
-                                    />
-                                </div>
-                            )}
 
                             <div className="button-group">
                                 <Button type="submit">

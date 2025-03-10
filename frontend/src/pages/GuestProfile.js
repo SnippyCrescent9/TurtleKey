@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Button from '../components/Buttons';
 
 const GuestProfile = () => {
     const navigate = useNavigate();
@@ -13,14 +14,12 @@ const GuestProfile = () => {
     };
 
     return (
-        <div className="auth-content">
-            <div className="auth-card">
-                <h2>Guest Profile</h2>
-                <div className="profile-section">
-                    <p className="guest-message">Create an account with us to earn achievements!</p>
-                    <button onClick={handleLogout} className="logout-button">
-                        Log Out
-                    </button>
+        <div className="container">
+            <h2>Guest</h2>
+            <div className="profile-section">
+                <p className="guest-message">Create an account with us to earn achievements!</p>
+                <div className="button-group">
+                    <Button onClick={handleLogout} className="logout-button">Logout</Button>
                 </div>
             </div>
         </div>

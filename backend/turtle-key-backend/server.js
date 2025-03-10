@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 const app = express();
@@ -63,6 +64,21 @@ const authenticateToken = (req, res, next) => {
         res.status(403).send('Invalid Token');
     }
 };
+
+// Email transporter setup
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+    },
+    tls: {
+        rejectUnauthorized: false
+    }
+});
 
 const awardAchievement = async (userId, achievementId) => {
     try {
@@ -449,6 +465,174 @@ app.post('/guest-login', async (req, res) => {
             hint: error.hint,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+});
+
+// Function to generate 6-character alphanumeric code
+function generateResetCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+app.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    try {
+        // Hash the email using the same method as registration
+        const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
+        
+        // Check if user exists using hashed email
+        const user = await pool.query('SELECT id FROM users WHERE email = $1', [hashedEmail]);
+        
+        if (user.rows.length > 0) {
+            const userId = user.rows[0].id;
+            const resetCode = generateResetCode();
+            const expiryTime = new Date(Date.now() + 15 * 60000); // 15 minutes from now
+
+            // Invalidate any existing codes
+            await pool.query(
+                'UPDATE password_reset_codes SET is_valid = false WHERE user_id = $1',
+                [userId]
+            );
+
+            // Insert new reset code
+            await pool.query(
+                'INSERT INTO password_reset_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
+                [userId, resetCode, expiryTime]
+            );
+
+            // Send email
+            const mailOptions = {
+                from: process.env.GMAIL_USER,
+                to: email, // Use original email for sending
+                subject: 'Password Reset Code - TurtleKey',
+                html: `
+                    <p>Here is your one time reset passcode:</p>
+                    <h2 style="font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0;">
+                        ${resetCode}
+                    </h2>
+                    <p>This passcode will expire in 15 minutes or when used.</p>
+                `
+            };
+
+            await transporter.sendMail(mailOptions);
+        }
+
+        // Always return success (even if email doesn't exist - security best practice)
+        res.json({ success: true, message: 'If an account exists with this email, a reset code has been sent.' });
+
+    } catch (error) {
+        console.error('Error in forgot-password:', error);
+        res.status(500).json({ success: false, message: 'An error occurred while processing your request.' });
+    }
+});
+
+app.post('/validate-reset-code', async (req, res) => {
+    const { email, code } = req.body;
+    try {
+        // Hash the email to match database
+        const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
+        
+        // Get user and their reset code
+        const result = await pool.query(
+            `SELECT rc.* FROM password_reset_codes rc
+             JOIN users u ON u.id = rc.user_id
+             WHERE u.email = $1 AND rc.code = $2 AND rc.is_valid = true
+             ORDER BY rc.created_at DESC LIMIT 1`,
+            [hashedEmail, code]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'Invalid reset code.' });
+        }
+
+        const resetCode = result.rows[0];
+
+        // Check if code is expired
+        if (new Date() > new Date(resetCode.expires_at)) {
+            return res.status(400).json({ success: false, message: 'Reset code has expired.' });
+        }
+
+        // Check if code is already used
+        if (resetCode.is_used) {
+            return res.status(400).json({ success: false, message: 'Reset code has already been used.' });
+        }
+
+        // Check attempt count
+        if (resetCode.attempt_count >= 3) {
+            await pool.query(
+                'UPDATE password_reset_codes SET is_valid = false WHERE id = $1',
+                [resetCode.id]
+            );
+            return res.status(400).json({ success: false, message: 'Too many invalid attempts.' });
+        }
+
+        // If code is valid, mark as used
+        await pool.query(
+            'UPDATE password_reset_codes SET is_used = true WHERE id = $1',
+            [resetCode.id]
+        );
+
+        res.json({ success: true, message: 'Code validated successfully.' });
+
+    } catch (error) {
+        console.error('Error in validate-reset-code:', error);
+        res.status(500).json({ success: false, message: 'An error occurred while validating the code.' });
+    }
+});
+
+app.post('/reset-password', async (req, res) => {
+    const { email, password, confirmPassword } = req.body;
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+        return res.status(400).json({ success: false, message: 'Passwords do not match.' });
+    }
+
+    // Validate password requirements
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,20})/;
+    if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Password must be 8-20 characters long and contain at least one capital letter, one number, and one special character.'
+        });
+    }
+
+    try {
+        // Hash the email to match database
+        const hashedEmail = crypto.createHash('sha256').update(email).digest('hex');
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Update user's password
+        const result = await pool.query(
+            'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id',
+            [hashedPassword, hashedEmail]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'Unable to update password.' });
+        }
+
+        // Invalidate all reset codes for this user
+        await pool.query(
+            `UPDATE password_reset_codes rc
+             SET is_valid = false
+             FROM users u
+             WHERE u.id = rc.user_id AND u.email = $1`,
+            [hashedEmail]
+        );
+
+        res.json({ success: true, message: 'Password updated successfully.' });
+
+    } catch (error) {
+        console.error('Error in reset-password:', error);
+        res.status(500).json({ success: false, message: 'An error occurred while resetting the password.' });
     }
 });
 
