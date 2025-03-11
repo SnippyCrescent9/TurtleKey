@@ -19,5 +19,8 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "supertest": "^7.0.0"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.8"
   }
 }
