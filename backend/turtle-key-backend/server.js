@@ -9,7 +9,8 @@ import nodemailer from 'nodemailer';
 
 dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 5000;
+//port number for fly.io is 8080, and not localhost 5000 anymore
+const PORT = process.env.PORT || 8080;
 
 app.use(cors({
     origin: 'http://localhost:3000',
@@ -651,6 +652,6 @@ const cleanupGuestAccounts = async () => {
 // Run cleanup every hour
 setInterval(cleanupGuestAccounts, 60 * 60 * 1000);
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0',() => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -7,9 +7,10 @@ app = 'turtle-key-backend'
 primary_region = 'sjc'
 
 [build]
+  command = "cd backend/turtle-key-backend && npm install && npm start"
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
